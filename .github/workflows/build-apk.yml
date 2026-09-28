@@ -1,0 +1,59 @@
+name: Build and Release Debug APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build & Release Debug APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Create Dummy .env
+        run: |
+          touch .env
+          echo "GEMINI_API_KEY=" > .env
+
+      - name: Build Debug APK
+        run: gradle assembleDebug --stacktrace
+
+      - name: Locate APK
+        id: apk_locator
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+
+      - name: Upload APK as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MySoundbox-Debug-APK
+          path: ${{ steps.apk_locator.outputs.apk_path }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v1.0.0"
+          name: "My SoundBox APK Release v1.0.0"
+          body: "Direct APK download for My SoundBox UPI Voice Alert App."
+          files: ${{ steps.apk_locator.outputs.apk_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
